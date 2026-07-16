@@ -684,7 +684,7 @@ static boolean I_NativeMidi_InitMusic(void)
     }
 
     midi_initialized = true;
-    printf("I_NativeMidi: Native MIDI output initialised (device index %d)\n",
+    printf("I_NativeMidi: Native MIDI output initialized (device index %d)\n",
            midi_out_device);
     return true;
 }

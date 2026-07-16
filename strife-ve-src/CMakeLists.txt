@@ -679,9 +679,9 @@ if(WIN32)
 elseif(APPLE)
 	target_link_libraries(strife-ve "-framework CoreMIDI" "-framework CoreFoundation")
 else()
-	# Linux: raw MIDI via ALSA (libasound provides the headers; raw device
-	# access uses standard POSIX open/write so no extra lib is needed, but
-	# asound is already linked if SDL was built with ALSA support).
+	# Linux: ALSA raw MIDI (/dev/snd/midiC*D*) uses POSIX open/write, but
+	# libasound may be needed for other ALSA functionality already linked
+	# transitively through SDL. Link it explicitly when available.
 	find_library(ASOUND_LIB asound)
 	if(ASOUND_LIB)
 		target_link_libraries(strife-ve ${ASOUND_LIB})
