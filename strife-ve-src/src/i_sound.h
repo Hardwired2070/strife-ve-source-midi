@@ -102,6 +102,7 @@ typedef enum
 #ifdef USE_YMFMOPL
     SNDDEVICE_OPL = 11,
 #endif
+    SNDDEVICE_NATIVE_MIDI = 12,
 } snddevice_t;
 
 // Interface for sound modules
@@ -236,6 +237,7 @@ extern int snd_samplerate;
 extern int snd_cachesize;
 extern int snd_maxslicetime_ms;
 extern char *snd_musiccmd;
+extern int midi_out_device;
 
 void I_BindSoundVariables(void);
 

@@ -992,10 +992,11 @@ static const char *musDeviceNames[] =
 {
     "Roland SC-55",
 #ifdef USE_YMFMOPL
-    "OPL3"
+    "OPL3",
 #else
-    "OPL2"
+    "OPL2",
 #endif
+    "Ext. MIDI"
 };
 
 static const char *dynLightTypes[] =
@@ -1081,6 +1082,15 @@ static int FE_doChangeMusicEngine(fevaluerange_t *vr, int dir)
 #endif
             returnValue = 1;
         }
+        else if(
+#ifdef USE_YMFMOPL
+                default_snd_musicdevice == SNDDEVICE_OPL ||
+#endif
+                default_snd_musicdevice == SNDDEVICE_SB)
+        {
+            default_snd_musicdevice = SNDDEVICE_NATIVE_MIDI;
+            returnValue = 2;
+        }
         else
         {
             default_snd_musicdevice = SNDDEVICE_GENMIDI;
@@ -1091,18 +1101,24 @@ static int FE_doChangeMusicEngine(fevaluerange_t *vr, int dir)
     {
         if(default_snd_musicdevice == SNDDEVICE_GENMIDI)
             return 0;
-        else
+        else if(
+#ifdef USE_YMFMOPL
+                default_snd_musicdevice == SNDDEVICE_OPL ||
+#endif
+                default_snd_musicdevice == SNDDEVICE_SB)
             return 1;
+        else
+            return 2;
     }
 
-#ifdef USE_YMFMOPL
-    // Restart the music track
-    int saveMus, saveLoop;
-    S_GetCurrentMusic(&saveMus, &saveLoop);
-    S_StopMusic();
-    snd_musicdevice = default_snd_musicdevice;
-    S_ChangeMusic(saveMus, saveLoop);
-#endif
+    // Restart the current music track through the newly selected module
+    {
+        int saveMus, saveLoop;
+        S_GetCurrentMusic(&saveMus, &saveLoop);
+        S_StopMusic();
+        snd_musicdevice = default_snd_musicdevice;
+        S_ChangeMusic(saveMus, saveLoop);
+    }
 
     return returnValue;
 }
@@ -1148,7 +1164,7 @@ static fevaluerange_t values[] =
         true,
         "snd_musicdevice",
         0,
-        1,
+        2,
         musDeviceNames,
         FE_doChangeMusicEngine
     },

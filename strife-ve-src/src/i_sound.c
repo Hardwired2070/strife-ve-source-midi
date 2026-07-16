@@ -69,6 +69,7 @@ extern sound_module_t sound_sdl_module;
 extern sound_module_t sound_pcsound_module;
 extern music_module_t music_sdl_module;
 extern music_module_t music_opl_module;
+extern music_module_t music_nativemidi_module;
 
 // For OPL module:
 
@@ -107,6 +108,7 @@ static music_module_t *music_modules[] =
 #ifndef USE_YMFMOPL
     &music_opl_module,
 #endif
+    &music_nativemidi_module,
 #endif
     NULL,
 };
@@ -459,6 +461,7 @@ void I_BindSoundVariables(void)
     M_BindVariable("timidity_cfg_path", &timidity_cfg_path);
     M_BindVariable("gus_patch_path",    &gus_patch_path);
     M_BindVariable("gus_ram_kb",        &gus_ram_kb);
+    M_BindVariable("midi_out_device",   &midi_out_device);
 
 #ifdef FEATURE_SOUND
     M_BindVariable("use_libsamplerate",   &use_libsamplerate);

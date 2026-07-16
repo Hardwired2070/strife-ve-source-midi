@@ -129,6 +129,7 @@ i_pcsound.c                                \
 i_sdlsound.c                               \
 i_sdlmusic.c                               \
 i_oplmusic.c                               \
+i_nativemidi.c                             \
 midifile.c           midifile.h            \
 mus2mid.c            mus2mid.h
 

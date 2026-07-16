@@ -361,6 +361,7 @@ add_sources(src
 	i_noappservices.c
 	i_noappservices.h
 	i_oplmusic.c
+	i_nativemidi.c
 	i_pcsound.c
 	i_platsystem.c
 	i_platsystem.h
@@ -671,6 +672,21 @@ target_compile_definitions(strife-ve PUBLIC SVE_USE_THEORAPLAY)
 target_link_libraries(strife-ve m Threads::Threads ${LIBRARIES}
 	SDL2::SDL2main SDL2::SDL2 SDL2::mixer SDL2::net
 	OGG::OGG THEORA::DEC VORBIS::VORBIS)
+
+# Native MIDI platform link libraries
+if(WIN32)
+	target_link_libraries(strife-ve winmm)
+elseif(APPLE)
+	target_link_libraries(strife-ve "-framework CoreMIDI" "-framework CoreFoundation")
+else()
+	# Linux: raw MIDI via ALSA (libasound provides the headers; raw device
+	# access uses standard POSIX open/write so no extra lib is needed, but
+	# asound is already linked if SDL was built with ALSA support).
+	find_library(ASOUND_LIB asound)
+	if(ASOUND_LIB)
+		target_link_libraries(strife-ve ${ASOUND_LIB})
+	endif()
+endif()
 if(ENABLE_STEAM_SERVICE)
 	target_link_libraries(strife-ve SteamService)
 endif()
