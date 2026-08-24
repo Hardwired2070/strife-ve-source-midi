@@ -3,10 +3,9 @@ Strife Veteran's Edition - Ext. MIDI
 
 A fork of the Strife: Veteran Edition GPL source release that adds a
 selectable **external MIDI hardware output**, so the game's music can be
-routed via MIDI to a hardware synthesizer or sound module - a Roland
-SC-55/SC-88/SD-50, a software/virtual synth, whatever's hooked up to your
-audio interface - instead of being limited to the built-in OPL and Roland
-SC-55 emulation.
+routed via MIDI to a hardware synthesizer/sound module or software/virtual synth, 
+whatever's hooked up to your audio interface instead of being limited to the 
+built-in OPL and Roland SC-55 emulation.
 
 Repository: https://github.com/Hardwired2070/strife-ve-source-midi
 
