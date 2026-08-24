@@ -2204,33 +2204,21 @@ void I_InitGraphics(void)
     SDL_Event dummy;
     byte *doompal;
     char *env;
-	const char *luna_width, *luna_height;
 
 #if defined(SVE_PLAT_SWITCH)
     screen_width = 1280;
     screen_height = 720;
-#elif LUNA_RELEASE
-	// Ensure that no matter what is in the config file, we always use the
-	// proper settings.
-	fullscreen = 1;
-	rbVsync = true;
-
-	// On Luna, our fullscreen resolution is always our environment vars.
-	luna_width = getenv("SOLSTICE_DISPLAY_RESOLUTION_WIDTH");
-	luna_height = getenv("SOLSTICE_DISPLAY_RESOLUTION_HEIGHT");
-	if (!luna_width || !luna_height)
-	{
-        luna_width  = "1920";
-        luna_height = "1080";
-	}
-
-	screen_width = atoi(luna_width);
-	screen_height = atoi(luna_height);
-	if (!screen_width || !screen_height)
-	{
-		I_Error("Unknown display resolution");
-	}
 #endif
+    // [MIDI mod]: this used to unconditionally force fullscreen=1 and a
+    // fixed/env-var-driven resolution under "#elif LUNA_RELEASE", ignoring
+    // whatever the player had configured. That's correct for an actual
+    // Amazon Luna cloud-streaming build (LUNA_RELEASE is Night Dive's
+    // codename for that target, and SOLSTICE_DISPLAY_RESOLUTION_WIDTH/
+    // HEIGHT is the streaming service telling it the remote display size -
+    // there's no local window to resize there), but we only build with the
+    // "Luna" configs to avoid requiring the (unavailable, NDA'd) Steamworks
+    // SDK, not to target Luna's cloud service. Left as-is it silently
+    // overrode Fullscreen/Screen Resolution settings on every launch.
 
     // Pass through the XSCREENSAVER_WINDOW environment variable to 
     // SDL_WINDOWID, to embed the SDL window into the Xscreensaver
