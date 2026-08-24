@@ -908,6 +908,15 @@ static boolean I_SDL_InitMusic(void)
 {
     int i;
 
+    // [MIDI mod]: tracks with no substitute file in strife-music.cfg (see
+    // GetSubstituteMusicFile() below) fall through to raw MIDI playback via
+    // SDL_mixer's bundled Timidity synth, which needs real instrument patch
+    // data this project doesn't ship. Prefer the OS's native MIDI output
+    // for that fallback case instead, so a missing substitute degrades to
+    // "plays via whatever the system's default MIDI device is" rather than
+    // total silence.
+    SDL_SetHint("SDL_NATIVE_MUSIC", "1");
+
     // SDL_mixer prior to v1.2.11 has a bug that causes crashes
     // with MIDI playback.  Print a warning message if we are
     // using an old version.
