@@ -58,6 +58,14 @@ char *snd_musiccmd = "";
 static sound_module_t *sound_module;
 static music_module_t *music_module;
 
+// Remembers the last volume passed to I_SetMusicVolume() so I_ReinitMusic()
+// can re-apply it to whichever module takes over. Volume is normally only
+// pushed to the *active* module (at S_Init() or from the volume slider), so
+// switching modules mid-game left the freshly-initialized one silent at
+// whatever its own Init() defaults to (0), regardless of the user's actual
+// setting.
+static int last_music_volume = 127;
+
 int snd_musicdevice = SNDDEVICE_GENMIDI;         // [SVE]
 int default_snd_musicdevice = SNDDEVICE_GENMIDI; // [SVE]
 int snd_sfxdevice = SNDDEVICE_SB;
@@ -362,6 +370,30 @@ void I_InitMusic(void)
 {
 }
 
+// [MIDI mod]: InitMusicModule() only ever runs once, at I_InitSound()
+// startup, so simply changing snd_musicdevice at runtime (e.g. from the
+// options menu) never actually swaps which music_module is in use - it just
+// changes the variable while I_RegisterSong/I_PlaySong etc. keep forwarding
+// to whichever module got picked at boot. This re-runs module selection so
+// the frontend can actually switch engines (e.g. to native MIDI) mid-game.
+void I_ReinitMusic(void)
+{
+    if (music_module != NULL)
+    {
+        music_module->Shutdown();
+        music_module = NULL;
+    }
+
+    InitMusicModule();
+
+    // The newly-claimed module (if any) starts at whatever volume its own
+    // Init() defaults to, not the user's actual setting - re-apply it.
+    if (music_module != NULL)
+    {
+        music_module->SetMusicVolume(last_music_volume);
+    }
+}
+
 void I_ShutdownMusic(void)
 {
 
@@ -369,6 +401,8 @@ void I_ShutdownMusic(void)
 
 void I_SetMusicVolume(int volume)
 {
+    last_music_volume = volume;
+
     if (music_module != NULL)
     {
         music_module->SetMusicVolume(volume);

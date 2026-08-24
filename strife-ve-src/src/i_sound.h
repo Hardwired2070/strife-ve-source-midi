@@ -239,6 +239,14 @@ extern int snd_maxslicetime_ms;
 extern char *snd_musiccmd;
 extern int midi_out_device;
 
+// Native MIDI hardware device enumeration / hot-swap (i_nativemidi.c)
+int I_NativeMidi_GetNumDevices(void);
+const char *I_NativeMidi_GetDeviceName(int idx);
+boolean I_NativeMidi_IsActive(void);
+void I_NativeMidi_ReopenDevice(void);
+
+void I_ReinitMusic(void);
+
 void I_BindSoundVariables(void);
 
 #endif

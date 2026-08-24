@@ -27,6 +27,7 @@
 
 #include "doomtype.h"
 #include "d_main.h"
+#include "i_sound.h"
 #include "i_video.h"
 #include "hu_lib.h"
 #include "m_menu.h"
@@ -754,15 +755,30 @@ void FE_CmdGfxAdvanced(void)
 
 // Options - Audio -----------------------------------------
 
+// Index of the "MIDI Dev" row in optionsAudioItems[] below - only meaningful
+// when Music Type is "Ext. MIDI", so FE_CmdAudio() hides it (swaps it to a
+// zero-height gap) otherwise.
+#define FE_AUDIOITEM_MIDIDEV 4
+
 static femenuitem_t optionsAudioItems[] =
 {
     { FE_MITEM_SLIDER, "Sfx Volume",   "sfx_volume"      },
     { FE_MITEM_SLIDER, "Voice Volume", "voice_volume"    },
     { FE_MITEM_SLIDER, "Music Volume", "music_volume"    },
     { FE_MITEM_VALUES, "Music Type",   "snd_musicdevice" },
+    { FE_MITEM_VALUES, "MIDI Dev",     "midi_out_device" },
     { FE_MITEM_MUSIC,  "Music Test",   "fe_musicnum"     },
     { FE_MITEM_END, "", "" }
 };
+
+// Runs every time this menu is drawn (not just on entry), so toggling
+// Music Type while already inside the menu immediately shows/hides the
+// "MIDI Dev" row instead of waiting for the next time the menu is opened.
+static void FE_AudioMenuDrawer(void)
+{
+    optionsAudioItems[FE_AUDIOITEM_MIDIDEV].type =
+        (default_snd_musicdevice == SNDDEVICE_NATIVE_MIDI) ? FE_MITEM_VALUES : FE_MITEM_GAP;
+}
 
 static femenu_t optionsAudio =
 {
@@ -773,7 +789,7 @@ static femenu_t optionsAudio =
     4,
     "Audio Options",
     FE_BG_RSKULL,
-    NULL,
+    FE_AudioMenuDrawer,
     FE_CURSOR_LASER,
     0,
     true
@@ -783,6 +799,7 @@ static femenu_t optionsAudio =
 void FE_CmdAudio(void)
 {
     FE_MusicTestSaveCurrent();
+    FE_InitMidiDeviceList();
     FE_PushMenu(&optionsAudio);
 }
 

@@ -293,9 +293,15 @@ static fehelpstr_t helpStrs[] =
         "View a list of public lobbies you can join. Only lobbies created by your "
         "friends will show up in this list."
     },
-    { 
-        "max_gore", 
-        "More blood, more gibs, more awesome. For those who like it \"brutal\"..." 
+    {
+        "max_gore",
+        "More blood, more gibs, more awesome. For those who like it \"brutal\"..."
+    },
+    {
+        "midi_out_device",
+        "Select which hardware MIDI output device to send music to when "
+        "Music Type is set to \"Ext. MIDI\", such as an external sound "
+        "module."
     },
     {
         "mbuttons",
@@ -1117,10 +1123,133 @@ static int FE_doChangeMusicEngine(fevaluerange_t *vr, int dir)
         S_GetCurrentMusic(&saveMus, &saveLoop);
         S_StopMusic();
         snd_musicdevice = default_snd_musicdevice;
+        I_ReinitMusic();
         S_ChangeMusic(saveMus, saveLoop);
     }
 
     return returnValue;
+}
+
+//=============================================================================
+//
+// MIDI Output Device Selector
+//
+// Lets the player pick which hardware MIDI port the "Ext. MIDI" music
+// engine sends note data to (e.g. a Roland SC-55 vs. a Focusrite audio
+// interface's MIDI output). The device list is (re)built by
+// FE_InitMidiDeviceList() every time the Audio options menu is opened, so
+// it always reflects whatever is currently plugged in.
+//
+
+#define MAX_MIDI_DEVICES 32
+
+static char *midiDeviceNameBufs[MAX_MIDI_DEVICES];
+static const char *midiDeviceNames[MAX_MIDI_DEVICES];
+
+static fevaluerange_t *FE_FindValueRange(const char *valuevar);
+
+static int FE_doChangeMidiDevice(fevaluerange_t *vr, int dir)
+{
+    if(dir != 0)
+    {
+        int newVal = midi_out_device + dir;
+        if(newVal > vr->max)
+            newVal = vr->min;
+        else if(newVal < vr->min)
+            newVal = vr->max;
+        midi_out_device = newVal;
+
+        // If the native MIDI module already has a device open, hot-swap it
+        // immediately instead of requiring a restart.
+        if(I_NativeMidi_IsActive())
+        {
+            int saveMus, saveLoop;
+            S_GetCurrentMusic(&saveMus, &saveLoop);
+            S_StopMusic();
+            I_NativeMidi_ReopenDevice();
+            S_ChangeMusic(saveMus, saveLoop);
+        }
+    }
+
+    return midi_out_device;
+}
+
+// Windows MIDI device names can run well past 20-30 characters (e.g.
+// "Microsoft GS Wavetable Synth", "VST MIDI Synth (port A)"), but the
+// options menu's value column has no wrap awareness: HUlib_drawYellowText()
+// silently wraps overflow onto the *next* row's y-position, corrupting
+// whatever that row draws (see the "MIDI Dev" row landing on top of
+// "Music Test"). Compact common patterns, then hard-truncate anything
+// still too long to fit safely.
+#define MAX_MIDI_NAME_DISPLAY_LEN 14
+
+static void FE_ShortenMidiDeviceName(char *name)
+{
+    char *paren;
+
+    // "Foo (port A)" / "Foo (port B)" -> "Foo A" / "Foo B" - keeps the
+    // distinguishing letter without the full parenthetical.
+    paren = strstr(name, " (port A)");
+    if(paren && paren[9] == '\0')
+        strcpy(paren, " A");
+    else
+    {
+        paren = strstr(name, " (port B)");
+        if(paren && paren[9] == '\0')
+            strcpy(paren, " B");
+    }
+
+    if(strlen(name) > MAX_MIDI_NAME_DISPLAY_LEN)
+        strcpy(name + MAX_MIDI_NAME_DISPLAY_LEN - 2, "..");
+}
+
+// Rebuild the MIDI device name list from what's currently attached to the
+// system. Call this before showing any menu that displays "midi_out_device".
+void FE_InitMidiDeviceList(void)
+{
+    fevaluerange_t *vr = FE_FindValueRange("midi_out_device");
+    int i, n;
+
+    if(!vr)
+        return;
+
+    for(i = 0; i < MAX_MIDI_DEVICES; i++)
+    {
+        if(midiDeviceNameBufs[i])
+        {
+            free(midiDeviceNameBufs[i]);
+            midiDeviceNameBufs[i] = NULL;
+        }
+    }
+
+    n = I_NativeMidi_GetNumDevices();
+    if(n <= 0)
+    {
+        midiDeviceNameBufs[0] = M_Strdup("No Devices Found");
+        midiDeviceNames[0]    = midiDeviceNameBufs[0];
+        vr->min = vr->max = 0;
+        vr->values = (const char *const *)midiDeviceNames;
+        midi_out_device = 0;
+        return;
+    }
+
+    if(n > MAX_MIDI_DEVICES)
+        n = MAX_MIDI_DEVICES;
+
+    for(i = 0; i < n; i++)
+    {
+        const char *name = I_NativeMidi_GetDeviceName(i);
+        midiDeviceNameBufs[i] = M_Strdup(name && *name ? name : "Unknown Device");
+        FE_ShortenMidiDeviceName(midiDeviceNameBufs[i]);
+        midiDeviceNames[i]    = midiDeviceNameBufs[i];
+    }
+
+    vr->min    = 0;
+    vr->max    = n - 1;
+    vr->values = (const char *const *)midiDeviceNames;
+
+    if(midi_out_device < 0 || midi_out_device >= n)
+        midi_out_device = 0;
 }
 
 static fevaluerange_t values[] =
@@ -1167,6 +1296,14 @@ static fevaluerange_t values[] =
         2,
         musDeviceNames,
         FE_doChangeMusicEngine
+    },
+    {
+        true,
+        "midi_out_device",
+        0,
+        0,      // patched at runtime by FE_InitMidiDeviceList()
+        NULL,   // patched at runtime by FE_InitMidiDeviceList()
+        FE_doChangeMidiDevice
     },
     {
         true,

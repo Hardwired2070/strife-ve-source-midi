@@ -62,6 +62,8 @@ const char *FE_NameForValue(const char *valuevar);
 int FE_IncrementValue(const char *valuevar);
 int FE_DecrementValue(const char *valuevar);
 
+void FE_InitMidiDeviceList(void);
+
 void FE_BindMusicTestVar(void);
 void FE_MusicTestSaveCurrent(void);
 void FE_MusicTestRestoreCurrent(void);

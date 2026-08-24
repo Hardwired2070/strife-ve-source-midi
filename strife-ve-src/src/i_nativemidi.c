@@ -66,6 +66,9 @@
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #  include <mmsystem.h>
+#  ifdef _MSC_VER
+#    pragma comment(lib, "winmm.lib")
+#  endif
 
 typedef struct {
     HMIDIOUT handle;
@@ -136,6 +139,13 @@ static boolean      song_playing     = false;
 static boolean      song_looping     = false;
 static boolean      song_paused      = false;
 static boolean      thread_running   = false;
+// True (mutex-protected) only while the player thread is actually inside
+// the event-dispatch loop below, reading from `current_song`. Callers that
+// are about to free that song (StopSong, ahead of UnRegisterSong) must wait
+// for this to go false first - otherwise the thread can dereference freed
+// memory mid-song, since it only re-checks song_playing/thread_running
+// between individual events, not continuously.
+static boolean      thread_active    = false;
 
 // ---------------------------------------------------------------------------
 // Platform-specific: open the MIDI output device
@@ -401,6 +411,90 @@ static void NM_SilenceAllChannels(void)
 }
 
 // ---------------------------------------------------------------------------
+// Device enumeration (used by the options menu to build a device list, and
+// by the frontend to let the player hot-swap the output device)
+// ---------------------------------------------------------------------------
+
+int I_NativeMidi_GetNumDevices(void)
+{
+#if defined(NM_BACKEND_WIN32)
+    return (int)midiOutGetNumDevs();
+#elif defined(NM_BACKEND_COREMIDI)
+    return (int)MIDIGetNumberOfDestinations();
+#elif defined(NM_BACKEND_ALSA)
+    glob_t gl;
+    int n;
+
+    memset(&gl, 0, sizeof(gl));
+    glob("/dev/snd/midiC*D*", GLOB_NOSORT, NULL, &gl);
+    n = (int)gl.gl_pathc;
+    globfree(&gl);
+    return n;
+#else
+    return 0;
+#endif
+}
+
+const char *I_NativeMidi_GetDeviceName(int idx)
+{
+#if defined(NM_BACKEND_WIN32)
+    static char namebuf[MAXPNAMELEN];
+    MIDIOUTCAPS caps;
+
+    if (midiOutGetDevCaps((UINT)idx, &caps, sizeof(caps)) != MMSYSERR_NOERROR)
+        return NULL;
+
+    strncpy(namebuf, caps.szPname, sizeof(namebuf) - 1);
+    namebuf[sizeof(namebuf) - 1] = '\0';
+    return namebuf;
+#elif defined(NM_BACKEND_COREMIDI)
+    static char namebuf[256];
+    MIDIEndpointRef ep;
+    CFStringRef name = NULL;
+
+    if (idx < 0 || idx >= (int)MIDIGetNumberOfDestinations())
+        return NULL;
+
+    ep = MIDIGetDestination((ItemCount)idx);
+    if (!ep)
+        return NULL;
+
+    MIDIObjectGetStringProperty(ep, kMIDIPropertyName, &name);
+    if (!name)
+        return NULL;
+
+    CFStringGetCString(name, namebuf, sizeof(namebuf), kCFStringEncodingUTF8);
+    CFRelease(name);
+    return namebuf;
+#elif defined(NM_BACKEND_ALSA)
+    static char namebuf[64];
+    glob_t gl;
+    const char *result = NULL;
+
+    memset(&gl, 0, sizeof(gl));
+    glob("/dev/snd/midiC*D*", GLOB_NOSORT, NULL, &gl);
+    if (idx >= 0 && (size_t)idx < gl.gl_pathc)
+    {
+        strncpy(namebuf, gl.gl_pathv[idx], sizeof(namebuf) - 1);
+        namebuf[sizeof(namebuf) - 1] = '\0';
+        result = namebuf;
+    }
+    globfree(&gl);
+    return result;
+#else
+    (void)idx;
+    return NULL;
+#endif
+}
+
+// True once the native MIDI module has successfully opened a device and is
+// the game's active music module.
+boolean I_NativeMidi_IsActive(void)
+{
+    return midi_initialized;
+}
+
+// ---------------------------------------------------------------------------
 // MIDI song loading
 // ---------------------------------------------------------------------------
 
@@ -452,7 +546,21 @@ static nm_song_t *NM_LoadMIDIFromBuffer(const byte *buf, int len)
     song->events       = (nm_event_t *)Z_Malloc(total_events * sizeof(nm_event_t),
                                                 PU_STATIC, NULL);
     song->num_events   = 0;
-    song->time_division = MIDI_GetFileTimeDivision(mf);
+
+    // MIDI_GetFileTimeDivision() (midifile.c) reads this 16-bit header field
+    // via SHORT(), which expands to SDL_SwapLE16 - a no-op on this
+    // little-endian machine - but Standard MIDI Files store it big-endian,
+    // like every other multi-byte field in the same header (see the correct
+    // SDL_SwapBE32 used for chunk sizes a few lines above it in midifile.c).
+    // The value comes back byte-swapped: e.g. mus2mid's 70 ticks/quarter
+    // reads back as 17920. i_oplmusic.c has been silently compensating for
+    // exactly this with its unexplained "TEMPO_FUDGE_FACTOR = 260" constant
+    // (17920 / 70 = 256, suspiciously close). Rather than touch that
+    // already-working, unrelated code path, undo the same swap here.
+    {
+        unsigned int raw = MIDI_GetFileTimeDivision(mf);
+        song->time_division = ((raw << 8) | (raw >> 8)) & 0xFFFF;
+    }
 
     // Second pass: collect events with delta times.
     // For multi-track (Type 1), merge all tracks maintaining delta_time
@@ -464,10 +572,18 @@ static nm_song_t *NM_LoadMIDIFromBuffer(const byte *buf, int len)
     {
         midi_track_iter_t *iter = MIDI_IterateTrack(mf, t);
         midi_event_t      *ev;
-        while (MIDI_GetNextEvent(iter, &ev))
+        unsigned int       delta_time;
+
+        // MIDI_GetDeltaTime() reports the delta time of whatever event is at
+        // the iterator's *current* position - it must be read before
+        // MIDI_GetNextEvent() advances that position, exactly like
+        // ScheduleTrack()/TrackTimerCallback() do in i_oplmusic.c. Calling it
+        // afterward (as this did) attaches every event's delta time to the
+        // *following* event instead, scrambling playback into rapid bursts.
+        while ((delta_time = MIDI_GetDeltaTime(iter), MIDI_GetNextEvent(iter, &ev)))
         {
             nm_event_t *ne = &song->events[song->num_events++];
-            ne->delta_time = MIDI_GetDeltaTime(iter);
+            ne->delta_time = delta_time;
             ne->event      = *ev;
             // Deep-copy variable-length data pointers (meta / sysex data)
             // so they survive after MIDI_FreeFile.
@@ -500,10 +616,18 @@ static void NM_FreeSong(nm_song_t *song)
     for (i = 0; i < song->num_events; i++)
     {
         nm_event_t *ne = &song->events[i];
-        if (ne->event.event_type == MIDI_EVENT_META)
+        // Only free data pointers that were actually deep-copied with
+        // Z_Malloc in NM_LoadMIDIFromBuffer (length > 0 there too) - a
+        // zero-length meta event (e.g. every track's End-of-Track event)
+        // still carries the *original* pointer into memory owned by the
+        // midifile.c parser, freed independently by MIDI_FreeFile(). Freeing
+        // that through Z_Free() crashes the zone allocator's sanity check.
+        if (ne->event.event_type == MIDI_EVENT_META &&
+            ne->event.data.meta.length > 0)
             Z_Free(ne->event.data.meta.data);
-        else if (ne->event.event_type == MIDI_EVENT_SYSEX ||
-                 ne->event.event_type == MIDI_EVENT_SYSEX_SPLIT)
+        else if ((ne->event.event_type == MIDI_EVENT_SYSEX ||
+                  ne->event.event_type == MIDI_EVENT_SYSEX_SPLIT) &&
+                 ne->event.data.sysex.length > 0)
             Z_Free(ne->event.data.sysex.data);
     }
     Z_Free(song->events);
@@ -543,6 +667,10 @@ static int NM_PlayerThread(void *unused)
             SDL_Delay(10);
             continue;
         }
+
+        SDL_LockMutex(player_mutex);
+        thread_active = true;
+        SDL_UnlockMutex(player_mutex);
 
         // Play one full pass through all events
         for (i = 0; i < song->num_events && thread_running; i++)
@@ -622,6 +750,12 @@ static int NM_PlayerThread(void *unused)
             }
         }
 
+        // Done touching `song` for now - safe for a caller waiting in
+        // I_NativeMidi_StopSong() to free it as soon as this clears.
+        SDL_LockMutex(player_mutex);
+        thread_active = false;
+        SDL_UnlockMutex(player_mutex);
+
         // End of song reached
         if (thread_running)
         {
@@ -645,6 +779,56 @@ static int NM_PlayerThread(void *unused)
     }
 
     return 0;
+}
+
+// Close and reopen the output device using the current value of
+// midi_out_device, so the player can switch hardware without restarting the
+// game.  Callers should stop any playing song first (e.g. via S_StopMusic())
+// and restart it afterward.
+//
+// The player thread calls NM_SendShortMsg()/NM_SendSysEx() on plat.handle
+// with no locking (by design, for tight MIDI timing), so it is not safe to
+// call NM_PlatformShutdown()/NM_PlatformInit() while that thread is still
+// running - doing so let the main thread close/reopen the handle out from
+// under a concurrent midiOutShortMsg() call, which reliably crashed on real
+// hardware. Stop and rejoin the thread first, exactly as ShutdownMusic does,
+// then start a fresh one once the new device is open.
+void I_NativeMidi_ReopenDevice(void)
+{
+    if (!midi_initialized)
+        return;
+
+    thread_running = false;
+    song_playing   = false;
+    if (player_thread)
+    {
+        SDL_WaitThread(player_thread, NULL);
+        player_thread = NULL;
+    }
+
+    NM_SilenceAllChannels();
+    NM_PlatformShutdown();
+
+    if (!NM_PlatformInit())
+    {
+        fprintf(stderr, "I_NativeMidi: failed to reopen MIDI output device %d\n",
+                midi_out_device);
+        midi_initialized = false;
+        return;
+    }
+
+    NM_SetAllChannelVolume(current_volume);
+
+    thread_running = true;
+    player_thread = SDL_CreateThread(NM_PlayerThread, "NativeMidi", NULL);
+    if (!player_thread)
+    {
+        fprintf(stderr, "I_NativeMidi: SDL_CreateThread failed on reopen: %s\n",
+                SDL_GetError());
+        thread_running = false;
+        NM_PlatformShutdown();
+        midi_initialized = false;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -817,6 +1001,20 @@ static void I_NativeMidi_StopSong(void)
     song_playing = false;
     song_paused  = false;
     SDL_UnlockMutex(player_mutex);
+
+    // The caller (S_StopMusic) frees the song object right after this call
+    // returns (via UnRegisterSong). Make sure the player thread is not still
+    // mid-dispatch on it first, or the free races a use of freed memory.
+    for (;;)
+    {
+        boolean active;
+        SDL_LockMutex(player_mutex);
+        active = thread_active;
+        SDL_UnlockMutex(player_mutex);
+        if (!active)
+            break;
+        SDL_Delay(1);
+    }
 
     NM_SilenceAllChannels();
 }

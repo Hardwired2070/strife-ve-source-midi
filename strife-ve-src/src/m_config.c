@@ -621,6 +621,13 @@ static default_t	doom_defaults_list[] =
 
     CONFIG_VARIABLE_INT(snd_musicdevice),
 
+    //
+    // Index of the hardware MIDI output device to use when snd_musicdevice
+    // is set to SNDDEVICE_NATIVE_MIDI ("Ext. MIDI").
+    //
+
+    CONFIG_VARIABLE_INT(midi_out_device),
+
     //!
     // Sound effects device.  A value of zero disables in-game sound
     // effects, a value of 1 enables PC speaker sound effects, while
