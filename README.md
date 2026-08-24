@@ -1,5 +1,5 @@
-Strife Veteran's Edition - Ext. MIDI
-=====================================
+Strife: Veteran Edition - Ext. MIDI
+====================================
 
 A fork of the Strife: Veteran Edition GPL source release that adds a
 selectable **external MIDI hardware output**, so the game's music can be
