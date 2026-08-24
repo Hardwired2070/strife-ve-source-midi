@@ -1,3 +1,85 @@
+Strife Veteran's Edition - Ext. MIDI
+=====================================
+
+A fork of the Strife: Veteran Edition GPL source release that adds a
+selectable **external MIDI hardware output**, so the game's music can be
+routed via MIDI to a hardware synthesizer or sound module - a Roland
+SC-55/SC-88/SD-50, a software/virtual synth, whatever's hooked up to your
+audio interface - instead of being limited to the built-in OPL and Roland
+SC-55 emulation.
+
+Repository: https://github.com/Hardwired2070/strife-ve-source-midi
+
+Features
+--------
+
+- A new **"Ext. MIDI"** option alongside the existing "Roland SC-55" and
+  "OPL2/OPL3" choices under Options -> Audio -> Music Type.
+- A **"MIDI Dev"** selector (shown only when Music Type is "Ext. MIDI")
+  listing every MIDI output device Windows currently knows about. Switching
+  devices applies immediately, no restart required, and your choice is
+  saved to `strife.cfg`.
+
+Also fixes, along the way
+--------------------------
+
+- **Fullscreen / Screen Resolution settings now actually apply.** The
+  "Luna" build configuration (used here specifically to avoid requiring the
+  unavailable Steamworks SDK - see below) is Night Dive's internal target
+  for Amazon Luna cloud streaming, and unconditionally forced fullscreen
+  plus a fixed/environment-driven resolution regardless of what was
+  configured. That's correct for an actual cloud-streaming build; it isn't
+  for a normal desktop one, so it's disabled here.
+
+Installing the release
+-----------------------
+
+1. Download the latest release exe from the
+   [Releases](https://github.com/Hardwired2070/strife-ve-source-midi/releases) page.
+2. Drop it into your existing Strife: Veteran Edition install folder
+   (Steam: `...\steamapps\common\Strife\`; GOG: wherever you installed it).
+3. Run it instead of the original `strife-ve.exe`.
+
+You need a legitimate purchased copy of Strife: Veteran Edition (Steam or
+GOG) already installed - this only replaces the executable, it does not
+include any game data.
+
+Building from source
+---------------------
+
+Open `msvc2015/chocolate.sln` in Visual Studio and build the
+**"Luna Release"** (or "Luna Debug" for a debug build with console/log
+output) configuration. This target avoids requiring the Steamworks or GOG
+Galaxy SDKs, which aren't included in this public GPL source release (see
+"Steam, GOG Galaxy, and Nintendo Switch" below) - multiplayer is
+unavailable in builds without them, same as it always has been in
+from-source builds of this engine.
+
+You'll need `SDL2.dll`, `SDL2_mixer.dll`, and `SDL2_net.dll` (plus
+`libogg-0.dll`, `libvorbis-0.dll`, `libvorbisfile-3.dll`) that match what
+Strife: Veteran Edition itself ships. The generic redistributables from
+libsdl.org are built differently and will silently break MIDI/audio
+playback - the simplest fix is to copy those DLLs directly out of an
+existing Strife: VE install rather than downloading them fresh. For
+testing locally, also copy `strife-music.cfg` and the `music/` folder from
+an existing install alongside your build - the "Roland SC-55" option is
+implemented as a lookup table of pre-rendered substitute tracks keyed off
+those files, not real-time MIDI synthesis, and won't produce audio without
+them.
+
+Love the app? Buy me a coffee on Ko-fi! https://ko-fi.com/hardwired2070
+
+Known limitations
+------------------
+
+- **Multiplayer** is unavailable, same as any from-source build without
+  the Steamworks/GOG Galaxy SDKs - not something this fork changed.
+
+---
+
+The sections below are Night Dive Studios' original documentation for the
+Strife: Veteran Edition GPL Source Code release, unmodified.
+
 Strife: Veteran Edition GPL Source Code
 =======================================
 Copyright 2020, Night Dive Studios, Incorporated.
