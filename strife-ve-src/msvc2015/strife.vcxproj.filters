@@ -653,10 +653,16 @@
     <ClCompile Include="..\src\i_glscale.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\i_crashdump.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\i_joystick.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\i_main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\i_nativemidi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\i_noappservices.c">
@@ -1118,13 +1124,7 @@
     <ClCompile Include="..\libtheora\lib\mathops.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
-    <ClCompile Include="..\libtheora\lib\mcenc.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
     <ClCompile Include="..\libtheora\lib\quant.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\rate.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
     <ClCompile Include="..\libtheora\lib\state.c">
@@ -1136,16 +1136,16 @@
     <ClCompile Include="..\libtheora\lib\tokenize.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
-    <ClCompile Include="..\libtheora\lib\analyze.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
     <ClCompile Include="..\libtheora\lib\apiwrapper.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
     <ClCompile Include="..\libtheora\lib\bitpack.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
-    <ClCompile Include="..\libtheora\lib\cpu.c">
+    <ClCompile Include="..\libtheora\lib\x86\x86cpu.c">
+      <Filter>Libraries\libtheora</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libtheora\lib\encoder_disabled.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
     <ClCompile Include="..\libtheora\lib\decapiwrapper.c">
@@ -1160,31 +1160,10 @@
     <ClCompile Include="..\libtheora\lib\dequant.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
-    <ClCompile Include="..\libtheora\lib\encapiwrapper.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\encfrag.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\encinfo.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\encode.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\enquant.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\fdct.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
     <ClCompile Include="..\libtheora\lib\fragment.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
     <ClCompile Include="..\libtheora\lib\huffdec.c">
-      <Filter>Libraries\libtheora</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libtheora\lib\huffenc.c">
       <Filter>Libraries\libtheora</Filter>
     </ClCompile>
     <ClCompile Include="..\libtheora\lib\idct.c">

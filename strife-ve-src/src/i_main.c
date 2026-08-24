@@ -40,6 +40,10 @@
 
 void D_DoomMain (void);
 
+// [MIDI mod debugging] writes crash.dmp / crashlog.txt on an unhandled
+// exception - see i_crashdump.c
+void I_InstallCrashHandler(void);
+
 #if defined(_WIN32_WCE)
 
 // Windows CE?  I doubt it even supports SMP..
@@ -147,6 +151,8 @@ int main(int argc, char **argv)
 
     myargc = argc;
     myargv = argv;
+
+    I_InstallCrashHandler();
 
     // haleyjd 20140821: [SVE] open debug console
 #if defined(_WIN32) && defined(_DEBUG)

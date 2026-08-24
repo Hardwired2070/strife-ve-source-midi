@@ -22,8 +22,13 @@
 
 void I_W32_DebugConsole(void)
 {
-    if(AllocConsole())
-        freopen("CONOUT$", "w", stdout);
+    // [MIDI mod debugging]: this only ever redirected stdout, so I_Error()'s
+    // fatal-error messages (written to stderr) had nowhere to go and were
+    // silently lost - the process just exited with no visible indication of
+    // what happened. Redirect both streams to log files next to the exe so
+    // fatal errors are actually readable after the process exits.
+    freopen("stdout.txt", "w", stdout);
+    freopen("stderr.txt", "w", stderr);
 }
 
 #endif
