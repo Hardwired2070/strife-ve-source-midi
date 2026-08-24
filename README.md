@@ -33,14 +33,15 @@ Also fixes, along the way
 Installing the release
 -----------------------
 
-1. Download the latest release exe from the
+1. Download the latest release zip from the
    [Releases](https://github.com/Hardwired2070/strife-ve-source-midi/releases) page.
-2. Drop it into your existing Strife: Veteran Edition install folder
-   (Steam: `...\steamapps\common\Strife\`; GOG: wherever you installed it).
-3. Run it instead of the original `strife-ve.exe`.
+2. Back up or rename your existing `strife-ve.exe` in your Strife: Veteran
+   Edition install folder (Steam: `...\steamapps\common\Strife\`; GOG:
+   wherever you installed it) if you want to keep it.
+3. Copy `strife-ve.exe` from the zip into that folder, and run it as usual.
 
 You need a legitimate purchased copy of Strife: Veteran Edition (Steam or
-GOG) already installed - this only replaces the executable, it does not
+GOG) already installed - this is a modified executable only, it does not
 include any game data.
 
 Building from source
